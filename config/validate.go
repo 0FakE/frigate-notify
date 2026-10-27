@@ -61,6 +61,11 @@ func (c *Config) Validate() []string {
 		validationErrors = append(validationErrors, results...)
 	}
 
+	// Validate notification cooldown configuration
+	if results := c.validateNotifyLimits(); len(results) > 0 {
+		validationErrors = append(validationErrors, results...)
+	}
+
 	// Validate Zone Filters
 	if results := c.validateZoneFilters(); len(results) > 0 {
 		validationErrors = append(validationErrors, results...)
@@ -901,4 +906,34 @@ func validateTemplate(provider, customTemplate string) string {
 		templateError = fmt.Sprintf("Failed to parse %s template: %s", provider, err.Error())
 	}
 	return templateError
+}
+
+// validateNotifyLimits ensures that every configured cooldown has a valid,
+// positive Go duration. A missing setting disables that scope.
+func (c *Config) validateNotifyLimits() []string {
+	var errs []string
+	validate := func(scope, name, value string) {
+		if strings.TrimSpace(name) == "" {
+			errs = append(errs, fmt.Sprintf("Notification cooldown in %s has an empty name", scope))
+			return
+		}
+		duration, err := time.ParseDuration(value)
+		if err != nil || duration <= 0 {
+			errs = append(errs, fmt.Sprintf("Invalid notification cooldown for %s %q: %q (expected positive duration, e.g. 30s or 5m)", scope, name, value))
+		}
+	}
+	limits := c.Alerts.NotifyLimits
+	if limits.Global != "" {
+		validate("global", "*", limits.Global)
+	}
+	for camera, duration := range limits.Camera {
+		validate("camera", camera, duration)
+	}
+	for label, duration := range limits.Label {
+		validate("label", label, duration)
+	}
+	for zone, duration := range limits.Zone {
+		validate("zone", zone, duration)
+	}
+	return errs
 }
