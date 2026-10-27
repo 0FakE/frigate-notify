@@ -61,46 +61,24 @@ func getCachebyID(id string) []string {
 	if !ok {
 		return nil
 	}
+	if cacheData == nil {
+		return []string{} // An unzoned event may still have been notified.
+	}
 	return cacheData
 }
 
-// Query cache to see if zone already generated alert
+// zoneAlreadyAlerted performs a read-only check of successfully notified zones.
+// Mutations happen only after SendAlert has accepted the notification.
 func zoneAlreadyAlerted(event models.Event) bool {
-	// Check if event already in cache & if so, get contents
 	alreadyAlerted, ok := zoneCache.Get(event.ID)
-	log.Trace().
-		Bool("in_cache", ok).
-		Strs("cache", alreadyAlerted).
-		Str("event_id", event.ID).
-		Msgf("Get event from cache")
-	// If event not found, create cache entry & add zones
 	if !ok {
-		log.Debug().
-			Str("event_id", event.ID).
-			Str("camera", event.Camera).
-			Str("zones", strings.Join(event.CurrentZones, ",")).
-			Msg("Event not in cache, adding...")
-		setZoneAlerted(event)
 		return false
 	}
-	// If event found, check to see if there are any new zones to notify on
 	for _, zone := range event.CurrentZones {
 		if !slices.Contains(alreadyAlerted, zone) {
-			log.Debug().
-				Str("event_id", event.ID).
-				Str("camera", event.Camera).
-				Str("zones", strings.Join(event.CurrentZones, ",")).
-				Msg("Found new zone not in cache")
-			setZoneAlerted(event)
 			return false
 		}
 	}
-	// If no new zones, then assume all have been notified already
-	log.Debug().
-		Str("event_id", event.ID).
-		Str("camera", event.Camera).
-		Str("zones", strings.Join(event.CurrentZones, ",")).
-		Msg("All zones in event have already notified")
 	return true
 }
 

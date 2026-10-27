@@ -29,8 +29,21 @@ type notifMeta struct {
 }
 
 // SendAlert forwards alert information to all enabled alerting methods
-func SendAlert(events []models.Event) {
-	config.Internal.Status.LastNotification = time.Now()
+// SendAlert forwards an alert only if its provider filters and cooldowns allow it.
+// true means dispatch was initiated, not that remote providers confirmed delivery.
+func SendAlert(events []models.Event) bool {
+	return sendAlert(events, false)
+}
+
+// SendTestAlert bypasses cooldown checking without changing cooldown history.
+func SendTestAlert(events []models.Event) bool {
+	return sendAlert(events, true)
+}
+
+func sendAlert(events []models.Event, test bool) bool {
+	if len(events) == 0 {
+		return false
+	}
 
 	// Collect snapshot, if available
 	var snapshot io.Reader
@@ -51,6 +64,20 @@ func SendAlert(events []models.Event) {
 	} else {
 		event.HasSnapshot = false
 	}
+
+	// Do not consume a cooldown if every provider rejects the event.
+	if !hasEligibleAlertProvider(events) {
+		return false
+	}
+	if !test {
+		allowed, reason := notificationCooldown.allow(events, config.ConfigData.Alerts.NotifyLimits)
+		if !allowed {
+			log.Info().Str("event_id", events[0].ID).Str("reason", reason).
+				Msg("Notification suppressed by cooldown")
+			return false
+		}
+	}
+	config.Internal.Status.LastNotification = time.Now()
 
 	// Send Alerts
 	// Apprise API
@@ -152,6 +179,7 @@ func SendAlert(events []models.Event) {
 			}
 		}
 	}
+	return true
 }
 
 func buildSnapshotURL(event models.Event) *url.URL {

@@ -48,7 +48,9 @@ func processEvent(event models.Event) {
 	}
 
 	// Send alert with snapshot
-	notifier.SendAlert([]models.Event{event})
+	if notifier.SendAlert([]models.Event{event}) {
+		setZoneAlerted(event)
+	}
 }
 
 func recheckEvent(event models.Event) models.Event {

@@ -124,7 +124,11 @@ func processReview(review models.Review) {
 	}
 
 	// Send alert with snapshot
-	notifier.SendAlert(detections)
+	if notifier.SendAlert(detections) {
+		for _, event := range detections {
+			setZoneAlerted(event)
+		}
+	}
 }
 
 func recheckReview(review models.Review) models.Review {
