@@ -10,6 +10,31 @@
 
 Frigate-Notify is a simple app designed to send notifications from [Frigate](https://github.com/blakeblackshear/frigate) NVR to your favorite platforms. Intended to be used with standalone Frigate installations - Home Assistant not required, MQTT is optional but recommended.
 
+## Fork: Event Notification Cooldowns
+
+This repository is a source-based fork of [0x2142/frigate-notify](https://github.com/0x2142/frigate-notify). The original project, licensing, and documentation remain credited to its maintainer. This fork adds the scope-aware cooldown feature proposed in [issue #264](https://github.com/0x2142/frigate-notify/issues/264#issuecomment-4000094887).
+
+For **Frigate 0.13.2**, use `app.mode: events` (there are no Frigate Reviews in that release). Set one or more cooldowns in `config.yml`:
+
+```yaml
+app:
+  mode: events
+
+alerts:
+  notify_limits:
+    # global: 15s
+    camera:
+      cam_door: 1m
+    label:
+      car: 5m
+    zone:
+      front_door: 2m
+```
+
+The first matching event sends an alert and reserves every applicable scope. During a cooldown, further alerts matching **any** active rule are suppressed and do not extend the timers. A label cooldown applies across **all cameras**; zones are matched by their exact name. Values use Go durations, such as `30s`, `5m`, or `1h`. All rules are **disabled by default**. Settings are documented in [docs/config/file.md](docs/config/file.md#notification-cooldowns-fork-extension).
+
+**Caveats:** A cooldown can hide a later important event. Suppressed events are not queued or summarized. State resets upon service restart. Manual test alerts bypass cooldowns. Docker images from upstream do not contain this fork's changes; build this repository's Dockerfile instead.
+
 ## Features
 
 ### Event Polling
