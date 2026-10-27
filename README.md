@@ -33,7 +33,24 @@ alerts:
 
 The first matching event sends an alert and reserves every applicable scope. During a cooldown, further alerts matching **any** active rule are suppressed and do not extend the timers. A label cooldown applies across **all cameras**; zones are matched by their exact name. Values use Go durations, such as `30s`, `5m`, or `1h`. All rules are **disabled by default**. Settings are documented in [docs/config/file.md](docs/config/file.md#notification-cooldowns-fork-extension).
 
-**Caveats:** A cooldown can hide a later important event. Suppressed events are not queued or summarized. State resets upon service restart. Manual test alerts bypass cooldowns. Docker images from upstream do not contain this fork's changes; build this repository's Dockerfile instead.
+**Caveats:** A cooldown can hide a later important event. Suppressed events are not queued or summarized. State resets upon service restart. Manual test alerts bypass cooldowns. Use this fork's container image from GHCR; upstream images do not contain the cooldown feature.
+
+## Docker Compose: Cooldown branch
+
+On every push to `feature/event-notification-cooldowns`, GitHub Actions tests the fork and publishes the multi-architecture image `ghcr.io/0fake/frigate-notify:feature-event-notification-cooldowns` (amd64 + arm64). A commit-specific `sha-...` tag is published as well.
+
+```yaml
+services:
+  frigate-notify:
+    image: ghcr.io/0fake/frigate-notify:feature-event-notification-cooldowns
+    volumes:
+      - /path/to/config.yml:/app/config.yml:ro
+    environment:
+      - TZ=Europe/Berlin
+    restart: unless-stopped
+```
+
+After the [publish workflow](https://github.com/0FakE/frigate-notify/actions/workflows/publish-cooldown-branch.yml) succeeds, run `docker compose pull frigate-notify && docker compose up -d frigate-notify`. For unauthenticated pulls, set the GHCR package visibility to **Public** in GitHub Packages if it was initially created as Private. Keep `app.mode: events` in the mounted config for Frigate 0.13.2. The image tag is updated on each successful branch build; use a `sha-...` tag if you want a fixed version.
 
 ## Features
 
