@@ -16,5 +16,8 @@ jobs:
         with:
           go-version-file: go.mod
           cache: true
-      - name: Run unit tests and race detector
-        run: go test -tags goolm -race ./...
+      - name: Build all packages using upstream Matrix tag
+        run: go build -tags goolm ./...
+      - name: Run cooldown-related unit tests and race detector
+        # api/v1 reload tests require a running Frigate instance and are not self-contained.
+        run: go test -tags goolm -race ./config ./events ./notifier
