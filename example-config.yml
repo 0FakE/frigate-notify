@@ -1,0 +1,368 @@
+## SAMPLE CONFIG FILE
+# For more info, see docs at https://frigate-notify.0x2142.com/config/file/
+
+# Frigate-Notify App settings
+app:
+  # Set App Mode - `events` or `reviews`
+  # Default is `events`
+  mode:
+  # Settings for frigate-notify API
+  api:
+    # Set to true to enable REST API
+    enabled:
+    # Specify custom port, default is 8000
+    port:
+
+
+## Event Collection Methods
+# Note: Only enable one - webapi OR mqtt
+frigate:
+  # Frigate host URL (ex. https://frigate.yourdomain.tld)
+  # This is required for both collection methods
+  server: 
+  # Set to true to allow self-signed certificates
+  ignoressl: false
+  # Public / internet-facing Frigate URL, if different from above server address
+  public_url:
+  # Frigate username & password, if using authentication
+  username:
+  password:
+
+  # List of HTTP headers to send to Frigate, in format Header: Value
+  headers:
+    # Example:
+    # - Authorization: Basic abcd1234
+
+  # On startup, frigate-notify will check reachability of Frigate server
+  startup_check:
+    # Max number of attempts (Default: 5)
+    attempts: 3
+    # Interval between attempts, in seconds (Default: 30)
+    interval: 30
+
+  webapi:
+    # Set to true to enable event collection via the web API
+    enabled: 
+    # Interval between checking for new events, in seconds (Default: 30)
+    interval: 
+    
+  mqtt: 
+    # Set to true to enable event collection via MQTT
+    enabled: 
+    # MQTT host IP
+    server: 
+    # MQTT host port. (Default: 1883)
+    port:
+    # MQTT Client ID (Default: frigate-notify)
+    clientid:
+    # MQTT Authentication. Leave both blank for anonymous
+    username: 
+    password: 
+    # Optionally set custom topic prefix (Default: frigate)
+    topic_prefix: 
+  
+  cameras:
+    # List of cameras to exclude from being monitored
+    # Camera names must match frigate configuration
+    exclude:
+      - test_cam_01
+
+
+## Alerting methods
+# Any combination of alert destinations can be configured
+alerts:  
+  # General config applies to all alert methods below
+  general:
+    # Title for any alert messages (Default: Frigate Alert)
+    # Supports template variables
+    title:
+    # Optionally modify default time format in notifications
+    # Use Golang's reference time format, or see docs for more info
+    timeformat:
+    # Allow notification of events without a snapshot
+    # Set to `drop` to disallow this
+    nosnap: allow
+    # Note: Following snap_ items only apply when event is in progress
+    # Set to `true` to include bounding box on detected object in snapshot
+    snap_bbox:
+    # Set to `true` to include timestamp on snapshot
+    snap_timestamp:
+    # Set to `true` to crop snapshot
+    snap_crop:
+    # By default snapshot is collected from detect stream which may be lower quality
+    # Set this to `true` to collect snapshot from camera recording stream
+    # Note: If enabled, `snap_bbox`, `snap_timestamp`, and `snap_crop` settings have no effect
+    snap_hires:
+    # Maximum number of retry attempts when pulling snapshot from Frigate at 2 second intervals
+    # By default, max_snap_retry is 10 - which means waiting up to 20 seconds for a snapshot image
+    max_snap_retry:
+    # By default, each Frigate event may generate several notifications as the object changes zones, etc
+    # Set this to `true` to only notify once per event
+    notify_once:
+    # When app mode is set to `reviews`, notifications are only sent on Frigate alerts
+    # Set this to `true` to also notify on detections
+    notify_detections:
+    # Recheck event details from Frigate after a delay (in seconds)
+    # By default, if set to 0 - events are sent immediately
+    # This can be useful to wait for a 3rd-party app to set sub_labels before sending notifications
+    recheck_delay:
+    # Allow audio-only events (no object detection)
+    # Set to `drop` to disallow this
+    audio_only: allow
+
+  # If configured, ignore events between times below
+  quiet:
+    # Start / end times in 24 hour format (ex. 4:00 or 22:30)
+    start:
+    end:
+
+  zones:
+    # Allow notifications for events outside a zone
+    # Set to `drop` to disallow this
+    unzoned: allow
+    # List of valid zones to generate alerts
+    # If blank, all events with a zone will generate notifications
+    allow:
+     - test_zone_01
+    # List of zones to never generate notifications
+    block:
+     - test_zone_02
+
+  labels:
+    # Filter events under minimum required label score (default: 0)
+    min_score:
+    # Filter notifications to only specific labels allowed here
+    allow:
+    # List of labels to never generate notifications
+    block:
+
+  sublabels:
+    # Filter notifications to only specific sublabels allowed here
+    allow:
+    # List of sublabels to never generate notifications
+    block:
+
+  license_plate:
+    # Set to `true` to wait for license plate recognition when car & license plate are detected
+    # By default, this is disabled. Re-checks Frigate up to 10 seconds after event is received for license plate data
+    enabled:
+    # Filter notifications to only specific license plates allowed here
+    allow:
+    # List of license plates to never generate notifications
+    block:
+
+  apprise_api:
+    # Set to true to enable alerting via Discord messages
+    enabled: false
+    # Server URL (ex. https://apprise.yourdomain.tld)
+    server:
+    # Apprise config token (or specify individual URLs below)
+    token:
+    # Target Apprise URL(s) (or specify a config token above)
+    urls:
+      - ntfy://xxxxxxxx/frigate
+      - discord://xxxxxxxxxxx
+    # Apprise Tags to notify (if using config token)
+    tags:
+      - ntfy
+    # Set to true to allow self-signed certificates
+    ignoressl: true
+    # Custom notification template, if desired
+    template:
+
+  discord:
+    # Set to true to enable alerting via Discord messages
+    enabled: false
+    # Insert full webhook URL below
+    webhook:
+    # Set to true to disable notifications being sent as Discord embedded message
+    disable_embed:
+    # Custom notification template, if desired
+    template:
+  
+  gotify:
+    # Set to true to enable alerting via a Gotify push notification server
+    enabled: false
+    # Server URL (ex. https://push.yourdomain.tld)
+    server:
+    # Application token generated by Gotify
+    token:
+    # Set message priority (Default: 0)
+    priority:
+    # Set to true to allow self-signed certificates
+    ignoressl:
+    # Custom notification template, if desired
+    template:
+
+  # Matrix Config
+  matrix:
+  - enabled: false
+    # URL of Matrix homeserver
+    server: http://10.122.2.3:8008
+    # Matrix username
+    username:
+    # Matrix user's password
+    password:
+    # Target Room ID to receive notifications
+    roomid:
+    # Set to true to allow self-signed certificates
+    ignoressl:
+    # Custom notification template, if desired
+    template:
+
+  # Mattermost Config
+  mattermost:
+    # Set to true to enable alerting via Mattermost
+    enabled: false
+    # Inbound webhook URL for Mattermost
+    webhook:
+    # Specify target channel, if allowed by Mattermost config
+    channel:
+    # Specify username, if allowed by Mattermost config
+    username:
+    # Set message priority (standard, important, or urgent - default: standard)
+    priority:
+    # Set to true to allow self-signed certificates
+    ignoressl:
+    # List of HTTP headers to send to Mattermost, in format Header: Value
+    headers:
+      # Example:
+      # - Authorization: Basic abcd1234
+    # Custom notification template, if desired
+    # Note that template must be valid JSON
+    template:
+
+  # Ntfy Config
+  ntfy:
+    # Set to true to enable alerting via ntfy
+    enabled: false
+    # URL of Ntfy server
+    server:
+    # Ntfy topic for notifications
+    topic:
+    # Set to true to allow self-signed certificates
+    ignoressl:
+    # List of HTTP headers to send to Ntfy, in format Header: Value
+    headers:
+      # Example:
+      # - Authorization: Basic abcd1234
+    # Custom notification template, if desired
+    template:
+
+  # Pushover Config
+  pushover:
+    # Set to true to enable alerting via Pushover
+    enabled: false
+    # Pushover API token for this application
+    token:
+    # User or Group key for recipients
+    userkey:
+    # Optional list of target devices by name, separated by comma
+    devices:
+    # Specify custom sound for notifications from this app
+    # For available values, see: https://pushover.net/api#sounds
+    sound:
+    # Optional message priority, default is 0
+    priority:
+    # If priority is 2, retry & expiration must be set
+    # Values in seconds. Retry must be 30 or higher
+    retry:
+    expire:
+    # Optional message lifetime
+    ttl:
+    # Custom notification template, if desired
+    template:
+
+  # Signal Config
+  signal:
+    # Set to true to enable alerting via Signal
+    enabled: false
+    # IP or hostname of signal-cli-rest-api container (See docs for more info)
+    server:
+    # Signal number to use for sending messages (ex. +12223334444)
+    account:
+    # List of recipients to send messages to
+    recipients:
+      # Example:
+      # - +15556667777
+    # Set to true to allow self-signed certificates
+    ignoressl:
+    # Custom notification template, if desired
+    template:
+
+  smtp:
+    # Set to true to enable alerting via SMTP
+    enabled: false
+    # SMTP server host (ex. smtp.gmail.com)
+    server: 
+    # SMTP port
+    port: 
+    # Whether or not the SMTP server requires TLS (Default: true)
+    tls: 
+    # Set SMTP Auth type. See docs for options (Default: plain)
+    authtype:
+    # Username for authentication
+    user:
+    # SMTP password for above user
+    password:
+    # Sending email address
+    from:
+    # Email alerts sent to any addresses listed below, separated by comma
+    recipient:
+    # Specify email threading method - `day` or `camera` (Default: `day`)
+    thread:
+    # Set to true to generate message ID from UUID
+    msguuid:
+    # Custom notification template, if desired
+    template:
+    # Set to true to allow self-signed certificates
+    ignoressl:
+
+  # Telegram Config
+  telegram:
+    # Set to true to enable alerting via Telegram
+    enabled: false
+    # Chat ID of alert recipient
+    chatid:
+    # Set to `true` to send short event video clip instead of snapshot image
+    send_clip:
+    # Message Thead ID
+    message_thread_id:
+    # Bot API token
+    token:
+    # Custom notification template, if desired
+    template:
+
+  # Webhook Config
+  webhook:
+    # Set to true to enable alerting via webhook
+    enabled: false
+    # URL of webhook receiver
+    server:
+    # Set to true to allow self-signed certificates
+    ignoressl:
+    # HTTP Method to send notifications, supports GET or POST (Default: POST)
+    method:
+    # Optional list of HTTP parameters to append to URL
+    params:
+      # Example:
+      # - token: abcd1234
+    # List of HTTP headers to send to webhook receiver, in format Header: Value
+    headers:
+      # Example:
+      # - Authorization: Basic abcd1234
+    # Custom notification template, if desired
+    # Note that template must be valid JSON
+    template:
+
+## App Monitoring
+# Sends HTTP GET to provided URL for aliveness checks
+monitor:
+  # Set to true to enable app monitoring
+  enabled: false
+  # URL for monitoring server
+  url: 
+  # Interval between monitoring check-in events, in seconds
+  interval: 
+  # Set to true to allow self-signed certificates
+  ignoressl: 
