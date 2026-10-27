@@ -57,11 +57,15 @@ func TestZoneAlreadyAlerted(t *testing.T) {
 	defer CloseZoneCache()
 	event := models.Event{ID: "test-event-id", CurrentZones: []string{"test_zone", "test_zone"}}
 
-	// Test new event
+	// New events must not enter the cache until a notification is accepted.
 	result := zoneAlreadyAlerted(event)
-	if result != false {
-		t.Errorf("Expected: false, Got: %v", result)
+	if result {
+		t.Fatal("Expected new event to be eligible")
 	}
+	if _, found := zoneCache.Get(event.ID); found {
+		t.Fatal("Checking a zone must not mutate the cache")
+	}
+	setZoneAlerted(event)
 
 	// Test adding new zone to existing event
 	event.CurrentZones = append(event.CurrentZones, "another_zone")
@@ -70,6 +74,8 @@ func TestZoneAlreadyAlerted(t *testing.T) {
 		t.Errorf("Expected: false, Got: %v", result)
 	}
 
+	// Only successful dispatches add the new zone.
+	setZoneAlerted(event)
 	// Test event that has already generated alert
 	result = zoneAlreadyAlerted(event)
 	if result != true {
@@ -91,5 +97,21 @@ func TestDelZoneAlerted(t *testing.T) {
 	_, ok := zoneCache.Get(event.ID)
 	if ok {
 		t.Errorf("Cache entry not deleted")
+	}
+}
+
+func TestUnzonedEventWasNotified(t *testing.T) {
+	InitZoneCache()
+	defer CloseZoneCache()
+	event := models.Event{ID: "unzoned-event"}
+	if zoneAlreadyAlerted(event) {
+		t.Fatal("first unzoned event must be eligible")
+	}
+	setZoneAlerted(event)
+	if getCachebyID(event.ID) == nil {
+		t.Fatal("unzoned event should count as already notified for notify_once")
+	}
+	if !zoneAlreadyAlerted(event) {
+		t.Fatal("second unzoned event should be marked notified")
 	}
 }

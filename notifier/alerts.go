@@ -28,7 +28,6 @@ type notifMeta struct {
 	index int
 }
 
-// SendAlert forwards alert information to all enabled alerting methods
 // SendAlert forwards an alert only if its provider filters and cooldowns allow it.
 // true means dispatch was initiated, not that remote providers confirmed delivery.
 func SendAlert(events []models.Event) bool {

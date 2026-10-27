@@ -495,3 +495,26 @@ func TestValidateTemplate(t *testing.T) {
 		t.Errorf("Expected: error message, Got: %v", result)
 	}
 }
+
+func TestValidateNotifyLimits(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		limits models.NotifyLimits
+		errors int
+	}{
+		{"omitted", models.NotifyLimits{}, 0},
+		{"valid", models.NotifyLimits{Global: "15s", Camera: map[string]string{"door": "1m"}, Label: map[string]string{"car": "5m"}, Zone: map[string]string{"front": "2m"}}, 0},
+		{"invalid global", models.NotifyLimits{Global: "banana"}, 1},
+		{"negative", models.NotifyLimits{Label: map[string]string{"car": "-1m"}}, 1},
+		{"zero", models.NotifyLimits{Zone: map[string]string{"front": "0s"}}, 1},
+		{"empty key", models.NotifyLimits{Camera: map[string]string{"": "1m"}}, 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			cfg := Config{Alerts: models.Alerts{NotifyLimits: tc.limits}}
+			got := cfg.validateNotifyLimits()
+			if len(got) != tc.errors {
+				t.Fatalf("got %d errors: %v, want %d", len(got), got, tc.errors)
+			}
+		})
+	}
+}

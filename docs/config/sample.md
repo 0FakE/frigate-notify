@@ -50,6 +50,15 @@ alerts:
     recheck_delay:
     audio_only:
 
+  notify_limits:
+    # global: 15s
+    camera:
+      # cam_door: 1m
+    label:
+      # car: 5m
+    zone:
+      # front_door: 2m
+
   quiet:
     start:
     end:

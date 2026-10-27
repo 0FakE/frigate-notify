@@ -254,6 +254,34 @@ alerts:
     audio_only:
 ```
 
+### Notification Cooldowns (Fork Extension)
+
+Optional `alerts.notify_limits` rules prevent repeated notifications from the same camera, object label, or zone. All rules are disabled unless configured. This is primarily intended for Frigate **event** mode (including Frigate 0.13.2); reviews are evaluated as one notification with rules from every included detection.
+
+- `global`: Applies to **all** notifications.
+- `camera`: Key is a Frigate camera name; each configured camera has its own cooldown.
+- `label`: Key is the exact Frigate object label (for example `car`, not `vehicle`). The timer is shared across cameras.
+- `zone`: Key is a zone name. The timer is shared across cameras that use that zone name, based on event `current_zones`.
+
+All configured values must be **positive Go durations** (`30s`, `5m`, `1h`). For example:
+
+```yaml
+alerts:
+  notify_limits:
+    # global: 15s
+    camera:
+      cam_door: 1m
+    label:
+      car: 5m
+      person: 30s
+    zone:
+      front_door: 2m
+```
+
+**Rule combination:** All matching rules must allow the notification; one blocked rule suppresses it. Accepted notifications reserve **all** matching rules, while rejected notifications never extend timers. A `car` detected on any camera therefore cannot notify again for 5 minutes if `label.car: 5m` is enabled. When the same event changes zones, existing event filtering still applies.
+
+Cooldown state resides in memory and resets when frigate-notify restarts. Manual API test notifications bypass cooldowns and do not change their state. Suppressed notifications are logged and discarded; no summary queue is enabled. Cooldowns apply to the notification as a whole (across eligible providers). Important events may be missed during a cooldown; keep global rules short or disabled if this is a concern.
+
 ### Quiet Hours
 
 Define a quiet period & supress alerts during this time.
