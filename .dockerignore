@@ -1,0 +1,14 @@
+.git*
+docs
+screenshots
+example-config.yml
+docker-compose.yml
+mkdocs.yml
+README.md
+.vscode
+# Go build and workspace files
+frigate-notify
+go.work
+go.work.sum
+# Local test config
+config.yml
