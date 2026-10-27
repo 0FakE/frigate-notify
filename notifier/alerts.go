@@ -65,7 +65,8 @@ func sendAlert(events []models.Event, test bool) bool {
 	}
 
 	// Do not consume a cooldown if every provider rejects the event.
-	if !hasEligibleAlertProvider(events) {
+	eligible := eligibleAlertProviders(events)
+	if len(eligible) == 0 {
 		return false
 	}
 	if !test {
@@ -83,7 +84,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.AppriseAPI {
 		if profile.Enabled {
 			provider := notifMeta{name: "apprise_api", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendAppriseAPI(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -92,7 +93,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Discord {
 		if profile.Enabled {
 			provider := notifMeta{name: "discord", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendDiscordMessage(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -101,7 +102,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Gotify {
 		if profile.Enabled {
 			provider := notifMeta{name: "gotify", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendGotifyPush(event, provider)
 			}
 		}
@@ -110,7 +111,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Matrix {
 		if profile.Enabled {
 			provider := notifMeta{name: "matrix", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendMatrix(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -119,7 +120,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Mattermost {
 		if profile.Enabled {
 			provider := notifMeta{name: "mattermost", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendMattermost(event, provider)
 			}
 		}
@@ -128,7 +129,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Ntfy {
 		if profile.Enabled {
 			provider := notifMeta{name: "ntfy", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendNtfyPush(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -137,7 +138,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Pushover {
 		if profile.Enabled {
 			provider := notifMeta{name: "pushover", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendPushoverMessage(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -146,7 +147,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Signal {
 		if profile.Enabled {
 			provider := notifMeta{name: "signal", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendSignalMessage(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -155,7 +156,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.SMTP {
 		if profile.Enabled {
 			provider := notifMeta{name: "smtp", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendSMTP(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -164,7 +165,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Telegram {
 		if profile.Enabled {
 			provider := notifMeta{name: "telegram", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendTelegramMessage(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -173,7 +174,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	for id, profile := range config.ConfigData.Alerts.Webhook {
 		if profile.Enabled {
 			provider := notifMeta{name: "webhook", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendWebhook(event, provider)
 			}
 		}
