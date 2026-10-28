@@ -66,7 +66,8 @@ type NotifyLimits struct {
 }
 
 type Alerts struct {
-	NotifyLimits NotifyLimits `koanf:"notify_limits" json:"notify_limits,omitempty" yaml:"notify_limits,omitempty" doc:"Scope-aware notification cooldowns"`
+	Cooldowns NotifyLimits `koanf:"cooldowns" json:"cooldowns,omitempty" yaml:"cooldowns,omitempty" doc:"Scope-aware notification cooldowns"`
+	LegacyNotifyLimits *NotifyLimits `koanf:"notify_limits" json:"notify_limits,omitempty" yaml:"notify_limits,omitempty" doc:"Deprecated: use cooldowns"`
 	General      General      `koanf:"general" json:"general,omitempty" doc:"Common alert settings"`
 	Quiet        Quiet        `koanf:"quiet" json:"quiet,omitempty" doc:"Alert quiet periods"`
 	Zones        Zones        `koanf:"zones" json:"zones,omitempty" doc:"Allow/Block zones from alerting"`

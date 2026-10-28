@@ -21,7 +21,7 @@ app:
   mode: events
 
 alerts:
-  notify_limits:
+  cooldowns:
     # global: 15s
     camera:
       cam_door: 1m
@@ -31,7 +31,7 @@ alerts:
       front_door: 2m
 ```
 
-The first matching event sends an alert and reserves every applicable scope. During a cooldown, further alerts matching **any** active rule are suppressed and do not extend the timers. A label cooldown applies across **all cameras**; zones are matched by their exact name. Values use Go durations, such as `30s`, `5m`, or `1h`. All rules are **disabled by default**. Settings are documented in [docs/config/file.md](docs/config/file.md#notification-cooldowns-fork-extension).
+The first matching event sends an alert and reserves every applicable scope. During a cooldown, further alerts matching **any** active rule are suppressed and do not extend the timers. A label cooldown applies across **all cameras**; camera and zone keys are case-sensitive. On startup, Frigate-Notify compares configured camera and zone keys with Frigate's `/api/config` response and logs warnings with suggestions for unknown names, without automatically changing the configured keys. Values use Go durations, such as `30s`, `5m`, or `1h`. All rules are **disabled by default**. The previous `alerts.notify_limits` setting remains available as a deprecated alias and logs a migration warning. When both keys are configured, `alerts.cooldowns` wins. Settings are documented in [docs/config/file.md](docs/config/file.md#notification-cooldowns-fork-extension).
 
 **Caveats:** A cooldown can hide a later important event. Suppressed events are not queued or summarized. State resets upon service restart. Manual test alerts bypass cooldowns. Use this fork's container image from GHCR; upstream images do not contain the cooldown feature.
 

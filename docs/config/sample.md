@@ -50,7 +50,7 @@ alerts:
     recheck_delay:
     audio_only:
 
-  notify_limits:
+  cooldowns:
     # global: 15s
     camera:
       # cam_door: 1m

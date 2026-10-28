@@ -13,6 +13,7 @@ import (
 )
 
 func (c *Config) Validate() []string {
+	c.applyCooldownAlias()
 	var validationErrors []string
 	log.Debug().Msg("Starting config validation...")
 
@@ -62,7 +63,7 @@ func (c *Config) Validate() []string {
 	}
 
 	// Validate notification cooldown configuration
-	if results := c.validateNotifyLimits(); len(results) > 0 {
+	if results := c.validateCooldowns(); len(results) > 0 {
 		validationErrors = append(validationErrors, results...)
 	}
 
@@ -910,7 +911,7 @@ func validateTemplate(provider, customTemplate string) string {
 
 // validateNotifyLimits ensures that every configured cooldown has a valid,
 // positive Go duration. A missing setting disables that scope.
-func (c *Config) validateNotifyLimits() []string {
+func (c *Config) validateCooldowns() []string {
 	var errs []string
 	validate := func(scope, name, value string) {
 		if strings.TrimSpace(name) == "" {
@@ -922,7 +923,7 @@ func (c *Config) validateNotifyLimits() []string {
 			errs = append(errs, fmt.Sprintf("Invalid notification cooldown for %s %q: %q (expected positive duration, e.g. 30s or 5m)", scope, name, value))
 		}
 	}
-	limits := c.Alerts.NotifyLimits
+	limits := c.Alerts.Cooldowns
 	if limits.Global != "" {
 		validate("global", "*", limits.Global)
 	}

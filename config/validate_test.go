@@ -496,7 +496,7 @@ func TestValidateTemplate(t *testing.T) {
 	}
 }
 
-func TestValidateNotifyLimits(t *testing.T) {
+func TestValidateCooldowns(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		limits models.NotifyLimits
@@ -510,8 +510,8 @@ func TestValidateNotifyLimits(t *testing.T) {
 		{"empty key", models.NotifyLimits{Camera: map[string]string{"": "1m"}}, 1},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg := Config{Alerts: models.Alerts{NotifyLimits: tc.limits}}
-			got := cfg.validateNotifyLimits()
+			cfg := Config{Alerts: models.Alerts{Cooldowns: tc.limits}}
+			got := cfg.validateCooldowns()
 			if len(got) != tc.errors {
 				t.Fatalf("got %d errors: %v, want %d", len(got), got, tc.errors)
 			}

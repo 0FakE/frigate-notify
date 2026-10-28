@@ -113,7 +113,7 @@ alerts:
   # OPTIONAL: Notification cooldowns per scope (disabled when omitted)
   # Every matching scope must expire before the next notification is allowed.
   # A suppressed event does not extend any cooldown.
-  notify_limits:
+  cooldowns:
     # global: 15s
     camera:
       # cam_door: 1m

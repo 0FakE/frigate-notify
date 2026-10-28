@@ -70,7 +70,7 @@ func sendAlert(events []models.Event, test bool) bool {
 		return false
 	}
 	if !test {
-		allowed, reason := notificationCooldown.allow(events, config.ConfigData.Alerts.NotifyLimits)
+		allowed, reason := notificationCooldown.allow(events, config.ConfigData.Alerts.Cooldowns)
 		if !allowed {
 			log.Info().Str("event_id", events[0].ID).Str("reason", reason).
 				Msg("Notification suppressed by cooldown")

@@ -256,7 +256,7 @@ alerts:
 
 ### Notification Cooldowns (Fork Extension)
 
-Optional `alerts.notify_limits` rules prevent repeated notifications from the same camera, object label, or zone. All rules are disabled unless configured. This is primarily intended for Frigate **event** mode (including Frigate 0.13.2); reviews are evaluated as one notification with rules from every included detection.
+Optional `alerts.cooldowns` rules prevent repeated notifications from the same camera, object label, or zone. All rules are disabled unless configured. This is primarily intended for Frigate **event** mode (including Frigate 0.13.2); reviews are evaluated as one notification with rules from every included detection.
 
 - `global`: Applies to **all** notifications.
 - `camera`: Key is a Frigate camera name; each configured camera has its own cooldown.
@@ -267,7 +267,7 @@ All configured values must be **positive Go durations** (`30s`, `5m`, `1h`). For
 
 ```yaml
 alerts:
-  notify_limits:
+  cooldowns:
     # global: 15s
     camera:
       cam_door: 1m
@@ -280,7 +280,7 @@ alerts:
 
 **Rule combination:** All matching rules must allow the notification; one blocked rule suppresses it. Accepted notifications reserve **all** matching rules, while rejected notifications never extend timers. A `car` detected on any camera therefore cannot notify again for 5 minutes if `label.car: 5m` is enabled. When the same event changes zones, existing event filtering still applies.
 
-Cooldown state resides in memory and resets when frigate-notify restarts. Manual API test notifications bypass cooldowns and do not change their state. Suppressed notifications are logged and discarded; no summary queue is enabled. Cooldowns apply to the notification as a whole (across eligible providers). Important events may be missed during a cooldown; keep global rules short or disabled if this is a concern.
+**Migration and name validation:** The old `alerts.notify_limits` key is accepted for backward compatibility but is deprecated and triggers a warning. Do not set both keys; if both are present, `alerts.cooldowns` takes precedence. Camera and zone names must match Frigate's exact case. At startup, the application queries Frigate's `/api/config` endpoint once, logs a warning for unmatched configured keys, and suggests nearby names (particularly case-only differences). It never silently rewrites keys. If Frigate configuration cannot be read, this name check is skipped with a warning; notification delivery continues.\n\nCooldown state resides in memory and resets when frigate-notify restarts. Manual API test notifications bypass cooldowns and do not change their state. Suppressed notifications are logged and discarded; no summary queue is enabled. Cooldowns apply to the notification as a whole (across eligible providers). Important events may be missed during a cooldown; keep global rules short or disabled if this is a concern.
 
 ### Quiet Hours
 
