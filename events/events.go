@@ -27,7 +27,7 @@ func processEvent(event models.Event) {
 
 	// Convert to human-readable timestamp
 	eventTime := time.Unix(int64(event.StartTime), 0)
-	log.Info().
+	log.Debug().
 		Str("event_id", event.ID).
 		Str("camera", event.Camera).
 		Str("label", event.Label).

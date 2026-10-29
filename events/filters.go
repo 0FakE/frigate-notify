@@ -15,19 +15,19 @@ import (
 func checkEventFilters(event models.Event) bool {
 	// Check if audio event
 	if event.Data.Type == "audio" && config.ConfigData.Alerts.General.AudioOnly == "drop" {
-		log.Info().Msg("Event dropped - Audio only.")
+		log.Debug().Msg("Event dropped - Audio only.")
 		return false
 	}
 
 	// Check if notifications are currently disabled
 	if !config.Internal.Status.Notifications.Enabled {
-		log.Info().Msg("Event dropped - Notifications currently disabled.")
+		log.Debug().Msg("Event dropped - Notifications currently disabled.")
 		return false
 	}
 
 	// Skip excluded cameras
 	if slices.Contains(config.ConfigData.Frigate.Cameras.Exclude, event.Camera) {
-		log.Info().
+		log.Debug().
 			Str("event_id", event.ID).
 			Str("camera", event.Camera).
 			Msg("Event dropped - Camera Excluded")
@@ -38,7 +38,7 @@ func checkEventFilters(event models.Event) bool {
 	// For example, if a camera has `required_zones` set - then there may not be any clip or snap until
 	// object moves into required zone
 	if !event.HasClip && !event.HasSnapshot {
-		log.Info().
+		log.Debug().
 			Str("event_id", event.ID).
 			Msg("Event dropped - No snapshot or clip available")
 		return false
@@ -75,7 +75,7 @@ func checkEventFilters(event models.Event) bool {
 
 	// Drop event if no snapshot & skip_nosnap is true
 	if !event.HasSnapshot && strings.ToLower(config.ConfigData.Alerts.General.NoSnap) == "drop" {
-		log.Info().
+		log.Debug().
 			Str("event_id", event.ID).
 			Msg("Event dropped - No snapshot available")
 		return false
@@ -83,7 +83,7 @@ func checkEventFilters(event models.Event) bool {
 
 	// Check quiet hours
 	if isQuietHours() {
-		log.Info().
+		log.Debug().
 			Str("event_id", event.ID).
 			Msg("Event dropped - Quiet hours.")
 		return false
@@ -159,7 +159,7 @@ func isAllowedZone(id string, zones []string) bool {
 		Msg("Check allowed zone")
 	// By default, send events without a zone unless specified otherwise
 	if strings.ToLower(config.ConfigData.Alerts.Zones.Unzoned) == "drop" && len(zones) == 0 {
-		log.Info().
+		log.Debug().
 			Str("event_id", id).
 			Str("zones", strings.Join(zones, ",")).
 			Msg("Event dropped - Outside of zone.")
@@ -170,7 +170,7 @@ func isAllowedZone(id string, zones []string) bool {
 	// Check zone block list
 	for _, zone := range zones {
 		if slices.Contains(config.ConfigData.Alerts.Zones.Block, zone) {
-			log.Info().
+			log.Debug().
 				Str("event_id", id).
 				Str("zones", strings.Join(zones, ",")).
 				Msg("Event dropped - Zone block list.")
@@ -188,7 +188,7 @@ func isAllowedZone(id string, zones []string) bool {
 		}
 	}
 	// Default drop event
-	log.Info().
+	log.Debug().
 		Str("event_id", id).
 		Str("zones", strings.Join(zones, ",")).
 		Msg("Event dropped - Not on zone allow list.")
@@ -232,7 +232,7 @@ func isAllowedLabel(id string, label string, kind string) bool {
 
 	// Check block list
 	if slices.Contains(blocked, label) {
-		log.Info().
+		log.Debug().
 			Str("event_id", id).
 			Str(kind, label).
 			Msgf("Event dropped - %s block list.", kind)
@@ -248,7 +248,7 @@ func isAllowedLabel(id string, label string, kind string) bool {
 	}
 
 	// Default drop event
-	log.Info().
+	log.Debug().
 		Str("event_id", id).
 		Str(kind, label).
 		Msgf("Event dropped - Not on %s allow list.", kind)
@@ -267,7 +267,7 @@ func aboveMinScore(id string, score float64) bool {
 	if score >= minScore {
 		return true
 	} else {
-		log.Info().
+		log.Debug().
 			Str("event_id", id).
 			Float64("score", score).
 			Msg("Event dropped - Does not meet minimum label score.")

@@ -142,12 +142,12 @@ func handleMQTTMsg(client mqtt.Client, msg mqtt.Message) {
 
 		switch event.Type {
 		case "new":
-			log.Info().
+			log.Debug().
 				Str("event_id", event.After.ID).
 				Msg("New event received")
 			processEvent(event.After.Event)
 		case "update":
-			log.Info().
+			log.Debug().
 				Str("event_id", event.After.ID).
 				Msg("Event update received")
 			processEvent(event.After.Event)
