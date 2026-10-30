@@ -256,6 +256,9 @@ alerts:
 
 ### Notification Cooldowns (Fork Extension)
 
+**INFO log deduplication:** The first cooldown suppression, `notify_once` duplicate, or already-notified-zone decision is logged at INFO for each event ID and reason. Subsequent decisions for the same ID/reason are logged at DEBUG. This logging-only cache is in-memory, bounded and expires after one hour; it never affects alert routing. Set `FN_LOGLEVEL=debug` in Docker Compose to inspect every repeat.
+
+
 Optional `alerts.cooldowns` rules prevent repeated notifications from the same camera, object label, or zone. All rules are disabled unless configured. This is primarily intended for Frigate **event** mode (including Frigate 0.13.2); reviews are evaluated as one notification with rules from every included detection.
 
 - `global`: Applies to **all** notifications.
@@ -331,6 +334,7 @@ This config section allows control over whether to generate alerts on all zones,
     - Env: `FN_ALERTS__ZONES__BLOCK`
     - Specify a list of zones to always ignore
     - This takes precedence over the `allow` list
+    - Both the event's current zones and previously entered zones are checked. Once Frigate reports an entry into a blocked zone, later updates for the **same event** remain blocked even after the object moves to an allowed zone. Earlier notifications cannot be recalled.
     - If configuring via environment variable, separate zone names by semicolon
 
 ```yaml title="Config File Snippet"
@@ -342,6 +346,8 @@ alerts:
     block:
      - test_zone_02
 ```
+
+**Early event alerts:** Frigate may publish a detection before its first zone assignment. With the default `unzoned: allow`, that initial event can notify before a later blocked zone is reported. Set `unzoned: drop` to prevent notifications without a current zone. This does **not** delay notifications or predict future zone entries. Allowed zones continue to be checked against the event's **current** zones only. At application startup, configured `alerts.zones.allow` and `alerts.zones.block` names are checked case-sensitively against Frigate's `/api/config` response; unknown names generate warnings with suggestions but do not stop the service.
 
 ### Labels
 

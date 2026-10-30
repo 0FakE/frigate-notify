@@ -190,3 +190,46 @@ func TestCooldownStartupNameCheckUsesFrigateAPI(t *testing.T) {
 		}
 	}
 }
+
+func TestZoneFilterNameValidation(t *testing.T) {
+	var known frigateCooldownConfig
+	if err := json.Unmarshal([]byte(`{"cameras":{"Garage_Innen":{"zones":{"Innen":{},"Gehweg":{}}},"Garage_Eingang":{"zones":{"Innenhof":{},"Einfahrt":{}}}}}`), &known); err != nil {
+		t.Fatal(err)
+	}
+	filters := models.Zones{
+		Allow: []string{"innen", "Innenhof"},
+		Block: []string{"gehweg", "Fremdgrund"},
+	}
+	got := unknownZoneFilterNames(filters, known)
+	want := []cooldownNameWarning{
+		{Scope: "alerts.zones.allow", Configured: "innen", Suggestion: "Innen"},
+		{Scope: "alerts.zones.block", Configured: "Fremdgrund", Suggestion: ""},
+		{Scope: "alerts.zones.block", Configured: "gehweg", Suggestion: "Gehweg"},
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("unexpected zone name warnings: got %#v, want %#v",got,want)
+	}
+}
+
+func TestZoneFilterStartupWarningWithoutCooldownRules(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/config" { t.Fatalf("wrong endpoint: %s",r.URL.Path) }
+		_, _ = w.Write([]byte(`{"cameras":{"Garage_Innen":{"zones":{"Innen":{},"Gehweg":{}}}}}`))
+	}))
+	defer server.Close()
+	oldLogger, oldTimeout, oldAuth, oldServer := log.Logger, util.HTTPTimeout, util.AuthEnabled, util.FrigateServer
+	defer func(){log.Logger=oldLogger;util.HTTPTimeout=oldTimeout;util.AuthEnabled=oldAuth;util.FrigateServer=oldServer}()
+	util.HTTPTimeout=5
+	util.AuthEnabled=false
+	util.FrigateServer=server.URL
+	var output bytes.Buffer
+	log.Logger=zerolog.New(&output)
+	c:=Config{
+		Frigate:models.Frigate{Server:server.URL},
+		Alerts:models.Alerts{Zones:models.Zones{Block:[]string{"gehweg"}}},
+	}
+	warnUnknownConfiguredNames(&c)
+	for _, value := range []string{"Unknown zone filter name","alerts.zones.block","gehweg","Gehweg"} {
+		if !strings.Contains(output.String(),value) {t.Errorf("missing %q in %s",value,output.String())}
+	}
+}

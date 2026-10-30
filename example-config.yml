@@ -129,6 +129,10 @@ alerts:
     end:
 
   zones:
+    # Frigate may detect an event before it assigns a zone.
+    # Use unzoned: drop when only zoned detections should notify.
+    # A blocked zone applies to both current_zones and entered_zones.
+    # The configured zone names are verified at startup (case-sensitive).
     # Allow notifications for events outside a zone
     # Set to `drop` to disallow this
     unzoned: allow

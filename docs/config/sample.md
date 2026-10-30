@@ -64,6 +64,8 @@ alerts:
     end:
 
   zones:
+    # For strict zone-only alerts, use unzoned: drop
+    # Blocked zones are checked in both current_zones and entered_zones
     unzoned: allow
     allow:
      - test_zone_01
