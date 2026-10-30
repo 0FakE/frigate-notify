@@ -17,6 +17,7 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/0x2142/frigate-notify/config"
+	"github.com/0x2142/frigate-notify/eventlog"
 	"github.com/0x2142/frigate-notify/models"
 	"github.com/0x2142/frigate-notify/util"
 )
@@ -72,7 +73,7 @@ func sendAlert(events []models.Event, test bool) bool {
 	if !test {
 		allowed, reason := notificationCooldown.allow(events, config.ConfigData.Alerts.Cooldowns)
 		if !allowed {
-			log.Info().Str("event_id", events[0].ID).Str("reason", reason).
+			eventlog.Decision(events[0].ID, "cooldown").Str("event_id", events[0].ID).Str("reason", reason).
 				Msg("Notification suppressed by cooldown")
 			return false
 		}

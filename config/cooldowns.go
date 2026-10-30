@@ -45,22 +45,22 @@ type cooldownNameWarning struct {
 	Scope, Configured, Suggestion string
 }
 
-// warnUnknownCooldownNames makes a single best-effort startup check.
+// warnUnknownConfiguredNames makes a single best-effort startup check.
 // This never prevents notifications: Frigate config may be temporarily
 // unavailable even when the event MQTT connection is healthy.
-func warnUnknownCooldownNames(c *Config) {
-	if len(c.Alerts.Cooldowns.Camera) == 0 && len(c.Alerts.Cooldowns.Zone) == 0 {
+func warnUnknownConfiguredNames(c *Config) {
+	if len(c.Alerts.Cooldowns.Camera) == 0 && len(c.Alerts.Cooldowns.Zone) == 0 && len(c.Alerts.Zones.Allow) == 0 && len(c.Alerts.Zones.Block) == 0 {
 		return
 	}
 	url := strings.TrimRight(c.Frigate.Server, "/") + "/api/config"
 	data, err := util.HTTPGet(url, c.Frigate.Insecure, "", c.Frigate.Headers...)
 	if err != nil {
-		log.Warn().Err(err).Msg("Could not check cooldown camera/zone names against Frigate /api/config; skipping name validation")
+		log.Warn().Err(err).Msg("Could not check configured camera/zone names against Frigate /api/config; skipping name validation")
 		return
 	}
 	var known frigateCooldownConfig
 	if err := json.Unmarshal(data, &known); err != nil || len(known.Cameras) == 0 {
-		log.Warn().Err(err).Msg("Could not read camera/zone names from Frigate /api/config; skipping name validation")
+		log.Warn().Err(err).Msg("Could not read configured camera/zone names from Frigate /api/config; skipping name validation")
 		return
 	}
 	for _, warning := range unknownCooldownNames(c.Alerts.Cooldowns, known) {
@@ -69,6 +69,13 @@ func warnUnknownCooldownNames(c *Config) {
 			entry = entry.Str("suggested_name", warning.Suggestion)
 		}
 		entry.Msg("Unknown cooldown name in Frigate configuration (case-sensitive)")
+	}
+	for _, warning := range unknownZoneFilterNames(c.Alerts.Zones, known) {
+		entry := log.Warn().Str("scope", warning.Scope).Str("configured_name", warning.Configured)
+		if warning.Suggestion != "" {
+			entry = entry.Str("suggested_name", warning.Suggestion)
+		}
+		entry.Msg("Unknown zone filter name in Frigate configuration (case-sensitive)")
 	}
 }
 
@@ -103,6 +110,38 @@ func unknownCooldownNames(limits models.NotifyLimits, frigate frigateCooldownCon
 				Scope: entry.scope, Configured: name,
 				Suggestion: suggestCooldownName(name, entry.known),
 			})
+		}
+	}
+	return warnings
+}
+
+// unknownZoneFilterNames checks lists under alerts.zones, not only cooldown keys.
+// A single zone name is valid if it exists on any Frigate camera.
+func unknownZoneFilterNames(filters models.Zones, frigate frigateCooldownConfig) []cooldownNameWarning {
+	knownZones := make(map[string]bool)
+	for _, camera := range frigate.Cameras {
+		for zone := range camera.Zones {
+			knownZones[zone] = true
+		}
+	}
+	var warnings []cooldownNameWarning
+	for _, entry := range []struct {
+		scope string
+		names []string
+	}{
+		{"alerts.zones.allow", filters.Allow},
+		{"alerts.zones.block", filters.Block},
+	} {
+		names := append([]string(nil), entry.names...)
+		sort.Strings(names)
+		for _, name := range names {
+			if !knownZones[name] {
+				warnings = append(warnings, cooldownNameWarning{
+					Scope: entry.scope,
+					Configured: name,
+					Suggestion: suggestCooldownName(name, knownZones),
+				})
+			}
 		}
 	}
 	return warnings

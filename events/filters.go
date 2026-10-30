@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/0x2142/frigate-notify/config"
+	"github.com/0x2142/frigate-notify/eventlog"
 	"github.com/0x2142/frigate-notify/models"
 )
 
@@ -48,7 +49,7 @@ func checkEventFilters(event models.Event) bool {
 	if config.ConfigData.Alerts.General.NotifyOnce {
 		// Check if cache already contains event ID
 		if getCachebyID(event.ID) != nil {
-			log.Info().
+			eventlog.Decision(event.ID, "notify_once").
 				Str("event_id", event.ID).
 				Msg("Event dropped - Already notified & notify_once is set")
 			return false
@@ -57,7 +58,7 @@ func checkEventFilters(event models.Event) bool {
 
 	// Check if already notified on zones
 	if zoneAlreadyAlerted(event) {
-		log.Info().
+		eventlog.Decision(event.ID, "already_notified_zone").
 			Str("event_id", event.ID).
 			Str("camera", event.Camera).
 			Str("label", event.Label).
@@ -90,7 +91,7 @@ func checkEventFilters(event models.Event) bool {
 	}
 
 	// Check Zone filter
-	if !isAllowedZone(event.ID, event.CurrentZones) {
+	if !isAllowedZoneWithHistory(event.ID, event.CurrentZones, event.EnteredZones) {
 		return false
 	}
 
@@ -148,46 +149,59 @@ func isQuietHours() bool {
 	return false
 }
 
-// isAllowedZone verifies whether a zone should be allowed to generate a notification
+// isAllowedZone retains the original helper for callers that only have current zones.
 func isAllowedZone(id string, zones []string) bool {
+	return isAllowedZoneWithHistory(id, zones, nil)
+}
+
+// isAllowedZoneWithHistory denies an event if any *currently occupied* OR
+// previously entered zone is blocked. The allow list and unzoned setting
+// continue to apply only to current zones, preserving their existing semantics.
+// A notification emitted before Frigate reports a blocked zone cannot be
+// retroactively withdrawn; configure zones.unzoned: drop to avoid early alerts.
+func isAllowedZoneWithHistory(id string, zones, enteredZones []string) bool {
 	log.Trace().
 		Str("event_id", id).
 		Strs("zones", zones).
+		Strs("entered_zones", enteredZones).
 		Str("allow_unzoned", config.ConfigData.Alerts.Zones.Unzoned).
 		Strs("blocked", config.ConfigData.Alerts.Zones.Block).
 		Strs("allowed", config.ConfigData.Alerts.Zones.Allow).
 		Msg("Check allowed zone")
-	// By default, send events without a zone unless specified otherwise
-	if strings.ToLower(config.ConfigData.Alerts.Zones.Unzoned) == "drop" && len(zones) == 0 {
-		log.Debug().
-			Str("event_id", id).
-			Str("zones", strings.Join(zones, ",")).
-			Msg("Event dropped - Outside of zone.")
-		return false
-	} else if len(zones) == 0 {
-		return true
-	}
-	// Check zone block list
-	for _, zone := range zones {
+
+	// Blocked zones always win, even after an object has left that zone.
+	for _, zone := range append(append([]string(nil), zones...), enteredZones...) {
 		if slices.Contains(config.ConfigData.Alerts.Zones.Block, zone) {
 			log.Debug().
 				Str("event_id", id).
+				Str("blocked_zone", zone).
 				Str("zones", strings.Join(zones, ",")).
+				Str("entered_zones", strings.Join(enteredZones, ",")).
 				Msg("Event dropped - Zone block list.")
 			return false
 		}
 	}
-	// If no allow list, all events are permitted
+
+	// Do not treat historical (entered) zones as a current location.
+	if len(zones) == 0 {
+		if strings.EqualFold(config.ConfigData.Alerts.Zones.Unzoned, "drop") {
+			log.Debug().
+				Str("event_id", id).
+				Msg("Event dropped - Outside of zone.")
+			return false
+		}
+		return true
+	}
+
+	// If no allow list, all nonblocked current zones are eligible.
 	if len(config.ConfigData.Alerts.Zones.Allow) == 0 {
 		return true
 	}
-	// Check zone allow list
 	for _, zone := range zones {
 		if slices.Contains(config.ConfigData.Alerts.Zones.Allow, zone) {
 			return true
 		}
 	}
-	// Default drop event
 	log.Debug().
 		Str("event_id", id).
 		Str("zones", strings.Join(zones, ",")).

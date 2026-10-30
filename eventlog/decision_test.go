@@ -25,12 +25,17 @@ func TestReasonAndEventIndependence(t *testing.T) {
 
 func TestDecisionLogLevels(t *testing.T) {
 	var output bytes.Buffer
-	prevLogger, prevLevel, prevTracker := log.Logger, zerolog.GlobalLevel(), decisions
-	decisions = tracker{}
+	prevLogger, prevLevel := log.Logger, zerolog.GlobalLevel()
+	decisions.mu.Lock()
+	oldSeen := decisions.seen
+	decisions.seen = nil
+	decisions.mu.Unlock()
 	defer func() {
 		log.Logger = prevLogger
 		zerolog.SetGlobalLevel(prevLevel)
-		decisions = prevTracker
+		decisions.mu.Lock()
+		decisions.seen = oldSeen
+		decisions.mu.Unlock()
 	}()
 	log.Logger = zerolog.New(&output)
 	zerolog.SetGlobalLevel(zerolog.InfoLevel)

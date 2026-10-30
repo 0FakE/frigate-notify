@@ -182,7 +182,7 @@ func TestCooldownStartupNameCheckUsesFrigateAPI(t *testing.T) {
 			Zone: map[string]string{"innen": "1m"},
 		}},
 	}
-	warnUnknownCooldownNames(&cfg)
+	warnUnknownConfiguredNames(&cfg)
 	text := output.String()
 	for _, expected := range []string{`"scope":"camera"`, `"suggested_name":"Garage_Innen"`, `"scope":"zone"`, `"suggested_name":"Innen"`} {
 		if !strings.Contains(text, expected) {
