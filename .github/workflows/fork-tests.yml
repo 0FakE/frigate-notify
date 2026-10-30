@@ -1,0 +1,23 @@
+name: Fork Go Tests
+
+on:
+  push:
+    branches:
+      - main
+      - feature/**
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build all packages using upstream Matrix tag
+        run: go build -tags goolm ./...
+      - name: Run cooldown-related unit tests and race detector
+        # api/v1 reload tests require a running Frigate instance and are not self-contained.
+        run: go test -tags goolm -race ./config ./events ./notifier ./eventlog

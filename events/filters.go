@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/0x2142/frigate-notify/config"
+	"github.com/0x2142/frigate-notify/eventlog"
 	"github.com/0x2142/frigate-notify/models"
 )
 
@@ -15,19 +16,19 @@ import (
 func checkEventFilters(event models.Event) bool {
 	// Check if audio event
 	if event.Data.Type == "audio" && config.ConfigData.Alerts.General.AudioOnly == "drop" {
-		log.Info().Msg("Event dropped - Audio only.")
+		log.Debug().Msg("Event dropped - Audio only.")
 		return false
 	}
 
 	// Check if notifications are currently disabled
 	if !config.Internal.Status.Notifications.Enabled {
-		log.Info().Msg("Event dropped - Notifications currently disabled.")
+		log.Debug().Msg("Event dropped - Notifications currently disabled.")
 		return false
 	}
 
 	// Skip excluded cameras
 	if slices.Contains(config.ConfigData.Frigate.Cameras.Exclude, event.Camera) {
-		log.Info().
+		log.Debug().
 			Str("event_id", event.ID).
 			Str("camera", event.Camera).
 			Msg("Event dropped - Camera Excluded")
@@ -38,7 +39,7 @@ func checkEventFilters(event models.Event) bool {
 	// For example, if a camera has `required_zones` set - then there may not be any clip or snap until
 	// object moves into required zone
 	if !event.HasClip && !event.HasSnapshot {
-		log.Info().
+		log.Debug().
 			Str("event_id", event.ID).
 			Msg("Event dropped - No snapshot or clip available")
 		return false
@@ -48,7 +49,7 @@ func checkEventFilters(event models.Event) bool {
 	if config.ConfigData.Alerts.General.NotifyOnce {
 		// Check if cache already contains event ID
 		if getCachebyID(event.ID) != nil {
-			log.Info().
+			eventlog.Decision(event.ID, "notify_once").
 				Str("event_id", event.ID).
 				Msg("Event dropped - Already notified & notify_once is set")
 			return false
@@ -57,7 +58,7 @@ func checkEventFilters(event models.Event) bool {
 
 	// Check if already notified on zones
 	if zoneAlreadyAlerted(event) {
-		log.Info().
+		eventlog.Decision(event.ID, "already_notified_zone").
 			Str("event_id", event.ID).
 			Str("camera", event.Camera).
 			Str("label", event.Label).
@@ -75,7 +76,7 @@ func checkEventFilters(event models.Event) bool {
 
 	// Drop event if no snapshot & skip_nosnap is true
 	if !event.HasSnapshot && strings.ToLower(config.ConfigData.Alerts.General.NoSnap) == "drop" {
-		log.Info().
+		log.Debug().
 			Str("event_id", event.ID).
 			Msg("Event dropped - No snapshot available")
 		return false
@@ -83,14 +84,14 @@ func checkEventFilters(event models.Event) bool {
 
 	// Check quiet hours
 	if isQuietHours() {
-		log.Info().
+		log.Debug().
 			Str("event_id", event.ID).
 			Msg("Event dropped - Quiet hours.")
 		return false
 	}
 
 	// Check Zone filter
-	if !isAllowedZone(event.ID, event.CurrentZones) {
+	if !isAllowedZoneWithHistory(event.ID, event.CurrentZones, event.EnteredZones) {
 		return false
 	}
 
@@ -148,47 +149,60 @@ func isQuietHours() bool {
 	return false
 }
 
-// isAllowedZone verifies whether a zone should be allowed to generate a notification
+// isAllowedZone retains the original helper for callers that only have current zones.
 func isAllowedZone(id string, zones []string) bool {
+	return isAllowedZoneWithHistory(id, zones, nil)
+}
+
+// isAllowedZoneWithHistory denies an event if any *currently occupied* OR
+// previously entered zone is blocked. The allow list and unzoned setting
+// continue to apply only to current zones, preserving their existing semantics.
+// A notification emitted before Frigate reports a blocked zone cannot be
+// retroactively withdrawn; configure zones.unzoned: drop to avoid early alerts.
+func isAllowedZoneWithHistory(id string, zones, enteredZones []string) bool {
 	log.Trace().
 		Str("event_id", id).
 		Strs("zones", zones).
+		Strs("entered_zones", enteredZones).
 		Str("allow_unzoned", config.ConfigData.Alerts.Zones.Unzoned).
 		Strs("blocked", config.ConfigData.Alerts.Zones.Block).
 		Strs("allowed", config.ConfigData.Alerts.Zones.Allow).
 		Msg("Check allowed zone")
-	// By default, send events without a zone unless specified otherwise
-	if strings.ToLower(config.ConfigData.Alerts.Zones.Unzoned) == "drop" && len(zones) == 0 {
-		log.Info().
-			Str("event_id", id).
-			Str("zones", strings.Join(zones, ",")).
-			Msg("Event dropped - Outside of zone.")
-		return false
-	} else if len(zones) == 0 {
-		return true
-	}
-	// Check zone block list
-	for _, zone := range zones {
+
+	// Blocked zones always win, even after an object has left that zone.
+	for _, zone := range append(append([]string(nil), zones...), enteredZones...) {
 		if slices.Contains(config.ConfigData.Alerts.Zones.Block, zone) {
-			log.Info().
+			log.Debug().
 				Str("event_id", id).
+				Str("blocked_zone", zone).
 				Str("zones", strings.Join(zones, ",")).
+				Str("entered_zones", strings.Join(enteredZones, ",")).
 				Msg("Event dropped - Zone block list.")
 			return false
 		}
 	}
-	// If no allow list, all events are permitted
+
+	// Do not treat historical (entered) zones as a current location.
+	if len(zones) == 0 {
+		if strings.EqualFold(config.ConfigData.Alerts.Zones.Unzoned, "drop") {
+			log.Debug().
+				Str("event_id", id).
+				Msg("Event dropped - Outside of zone.")
+			return false
+		}
+		return true
+	}
+
+	// If no allow list, all nonblocked current zones are eligible.
 	if len(config.ConfigData.Alerts.Zones.Allow) == 0 {
 		return true
 	}
-	// Check zone allow list
 	for _, zone := range zones {
 		if slices.Contains(config.ConfigData.Alerts.Zones.Allow, zone) {
 			return true
 		}
 	}
-	// Default drop event
-	log.Info().
+	log.Debug().
 		Str("event_id", id).
 		Str("zones", strings.Join(zones, ",")).
 		Msg("Event dropped - Not on zone allow list.")
@@ -232,7 +246,7 @@ func isAllowedLabel(id string, label string, kind string) bool {
 
 	// Check block list
 	if slices.Contains(blocked, label) {
-		log.Info().
+		log.Debug().
 			Str("event_id", id).
 			Str(kind, label).
 			Msgf("Event dropped - %s block list.", kind)
@@ -248,7 +262,7 @@ func isAllowedLabel(id string, label string, kind string) bool {
 	}
 
 	// Default drop event
-	log.Info().
+	log.Debug().
 		Str("event_id", id).
 		Str(kind, label).
 		Msgf("Event dropped - Not on %s allow list.", kind)
@@ -267,7 +281,7 @@ func aboveMinScore(id string, score float64) bool {
 	if score >= minScore {
 		return true
 	} else {
-		log.Info().
+		log.Debug().
 			Str("event_id", id).
 			Float64("score", score).
 			Msg("Event dropped - Does not meet minimum label score.")

@@ -1,11 +1,11 @@
 services:
   frigate-notify:
-    image: ghcr.io/0x2142/frigate-notify:latest
+    image: ghcr.io/0fake/frigate-notify:feature-event-notification-cooldowns
     # Uncomment below if REST API server is enabled
     # ports:
     #   - "8000:8000"
     environment:
-      - TZ=Etc/UTC
+      - TZ=Europe/Berlin
     volumes:
       - /path/to/config.yml:/app/config.yml
     restart: unless-stopped

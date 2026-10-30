@@ -91,6 +91,7 @@ func Load() {
 		log.Fatal().Msg("Please fix config errors before restarting app.")
 	} else {
 		log.Info().Msg("Config file validated!")
+		warnUnknownConfiguredNames(&ConfigData)
 	}
 }
 

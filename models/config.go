@@ -58,7 +58,16 @@ type Cameras struct {
 	Exclude []string `koanf:"exclude" json:"exclude" uniqueItems:"true" doc:"Exclude cameras from alerting"`
 }
 
+type NotifyLimits struct {
+	Global string            `koanf:"global" json:"global,omitempty" yaml:"global,omitempty" doc:"Cooldown shared by all notifications"`
+	Camera map[string]string `koanf:"camera" json:"camera,omitempty" yaml:"camera,omitempty" doc:"Notification cooldowns per camera"`
+	Label  map[string]string `koanf:"label" json:"label,omitempty" yaml:"label,omitempty" doc:"Notification cooldowns per object label"`
+	Zone   map[string]string `koanf:"zone" json:"zone,omitempty" yaml:"zone,omitempty" doc:"Notification cooldowns per zone"`
+}
+
 type Alerts struct {
+	Cooldowns NotifyLimits `koanf:"cooldowns" json:"cooldowns,omitempty" yaml:"cooldowns,omitempty" doc:"Scope-aware notification cooldowns"`
+	LegacyNotifyLimits *NotifyLimits `koanf:"notify_limits" json:"notify_limits,omitempty" yaml:"notify_limits,omitempty" doc:"Deprecated: use cooldowns"`
 	General      General      `koanf:"general" json:"general,omitempty" doc:"Common alert settings"`
 	Quiet        Quiet        `koanf:"quiet" json:"quiet,omitempty" doc:"Alert quiet periods"`
 	Zones        Zones        `koanf:"zones" json:"zones,omitempty" doc:"Allow/Block zones from alerting"`

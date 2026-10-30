@@ -110,6 +110,18 @@ alerts:
     # Set to `drop` to disallow this
     audio_only: allow
 
+  # OPTIONAL: Notification cooldowns per scope (disabled when omitted)
+  # Every matching scope must expire before the next notification is allowed.
+  # A suppressed event does not extend any cooldown.
+  cooldowns:
+    # global: 15s
+    camera:
+      # cam_door: 1m
+    label:
+      # car: 5m
+    zone:
+      # front_door: 2m
+
   # If configured, ignore events between times below
   quiet:
     # Start / end times in 24 hour format (ex. 4:00 or 22:30)
@@ -117,6 +129,10 @@ alerts:
     end:
 
   zones:
+    # Frigate may detect an event before it assigns a zone.
+    # Use unzoned: drop when only zoned detections should notify.
+    # A blocked zone applies to both current_zones and entered_zones.
+    # The configured zone names are verified at startup (case-sensitive).
     # Allow notifications for events outside a zone
     # Set to `drop` to disallow this
     unzoned: allow

@@ -50,11 +50,22 @@ alerts:
     recheck_delay:
     audio_only:
 
+  cooldowns:
+    # global: 15s
+    camera:
+      # cam_door: 1m
+    label:
+      # car: 5m
+    zone:
+      # front_door: 2m
+
   quiet:
     start:
     end:
 
   zones:
+    # For strict zone-only alerts, use unzoned: drop
+    # Blocked zones are checked in both current_zones and entered_zones
     unzoned: allow
     allow:
      - test_zone_01

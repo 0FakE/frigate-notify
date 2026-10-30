@@ -1,0 +1,65 @@
+name: Publish Cooldown Branch Image
+
+on:
+  push:
+    branches:
+      - feature/event-notification-cooldowns
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-cooldown-branch
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Verify Go build and cooldown tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Build all packages
+        run: go build -tags goolm ./...
+      - name: Test event notifier with race detector
+        run: go test -tags goolm -race ./config ./events ./notifier ./eventlog
+
+  publish:
+    name: Publish GHCR (amd64 and arm64)
+    needs: test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Authenticate with GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Prepare versioned and rolling tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/0fake/frigate-notify
+          tags: |
+            type=raw,value=feature-event-notification-cooldowns
+            type=sha
+      - name: Build and publish multi-architecture image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

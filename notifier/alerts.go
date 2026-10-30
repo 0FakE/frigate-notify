@@ -17,6 +17,7 @@ import (
 	"golang.org/x/text/language"
 
 	"github.com/0x2142/frigate-notify/config"
+	"github.com/0x2142/frigate-notify/eventlog"
 	"github.com/0x2142/frigate-notify/models"
 	"github.com/0x2142/frigate-notify/util"
 )
@@ -28,9 +29,21 @@ type notifMeta struct {
 	index int
 }
 
-// SendAlert forwards alert information to all enabled alerting methods
-func SendAlert(events []models.Event) {
-	config.Internal.Status.LastNotification = time.Now()
+// SendAlert forwards an alert only if its provider filters and cooldowns allow it.
+// true means dispatch was initiated, not that remote providers confirmed delivery.
+func SendAlert(events []models.Event) bool {
+	return sendAlert(events, false)
+}
+
+// SendTestAlert bypasses cooldown checking without changing cooldown history.
+func SendTestAlert(events []models.Event) bool {
+	return sendAlert(events, true)
+}
+
+func sendAlert(events []models.Event, test bool) bool {
+	if len(events) == 0 {
+		return false
+	}
 
 	// Collect snapshot, if available
 	var snapshot io.Reader
@@ -52,12 +65,27 @@ func SendAlert(events []models.Event) {
 		event.HasSnapshot = false
 	}
 
+	// Do not consume a cooldown if every provider rejects the event.
+	eligible := eligibleAlertProviders(events)
+	if len(eligible) == 0 {
+		return false
+	}
+	if !test {
+		allowed, reason := notificationCooldown.allow(events, config.ConfigData.Alerts.Cooldowns)
+		if !allowed {
+			eventlog.Decision(events[0].ID, "cooldown").Str("event_id", events[0].ID).Str("reason", reason).
+				Msg("Notification suppressed by cooldown")
+			return false
+		}
+	}
+	config.Internal.Status.LastNotification = time.Now()
+
 	// Send Alerts
 	// Apprise API
 	for id, profile := range config.ConfigData.Alerts.AppriseAPI {
 		if profile.Enabled {
 			provider := notifMeta{name: "apprise_api", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendAppriseAPI(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -66,7 +94,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Discord {
 		if profile.Enabled {
 			provider := notifMeta{name: "discord", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendDiscordMessage(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -75,7 +103,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Gotify {
 		if profile.Enabled {
 			provider := notifMeta{name: "gotify", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendGotifyPush(event, provider)
 			}
 		}
@@ -84,7 +112,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Matrix {
 		if profile.Enabled {
 			provider := notifMeta{name: "matrix", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendMatrix(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -93,7 +121,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Mattermost {
 		if profile.Enabled {
 			provider := notifMeta{name: "mattermost", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendMattermost(event, provider)
 			}
 		}
@@ -102,7 +130,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Ntfy {
 		if profile.Enabled {
 			provider := notifMeta{name: "ntfy", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendNtfyPush(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -111,7 +139,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Pushover {
 		if profile.Enabled {
 			provider := notifMeta{name: "pushover", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendPushoverMessage(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -120,7 +148,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Signal {
 		if profile.Enabled {
 			provider := notifMeta{name: "signal", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendSignalMessage(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -129,7 +157,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.SMTP {
 		if profile.Enabled {
 			provider := notifMeta{name: "smtp", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendSMTP(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -138,7 +166,7 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Telegram {
 		if profile.Enabled {
 			provider := notifMeta{name: "telegram", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendTelegramMessage(event, bytes.NewReader(snap), provider)
 			}
 		}
@@ -147,11 +175,12 @@ func SendAlert(events []models.Event) {
 	for id, profile := range config.ConfigData.Alerts.Webhook {
 		if profile.Enabled {
 			provider := notifMeta{name: "webhook", index: id}
-			if checkAlertFilters(events, profile.Filters, provider) {
+			if eligible[provider] {
 				go SendWebhook(event, provider)
 			}
 		}
 	}
+	return true
 }
 
 func buildSnapshotURL(event models.Event) *url.URL {
